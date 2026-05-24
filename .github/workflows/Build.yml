@@ -1,0 +1,60 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate Keystore
+        run: |
+          keytool -genkey -v \
+            -keystore keystore.jks \
+            -alias koelplayer \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass koel123456 \
+            -keypass koel123456 \
+            -dname "CN=KoelPlayer, OU=App, O=App, L=Cairo, S=Cairo, C=EG"
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Sign APK
+        run: |
+          UNSIGNED="build/app/outputs/flutter-apk/app-release.apk"
+          ZIPALIGN=$(find $ANDROID_HOME/build-tools -name "zipalign" | sort -r | head -1)
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | sort -r | head -1)
+          $ZIPALIGN -v -f 4 "$UNSIGNED" build/app/outputs/flutter-apk/aligned.apk
+          $APKSIGNER sign \
+            --ks keystore.jks \
+            --ks-pass pass:koel123456 \
+            --key-pass pass:koel123456 \
+            --ks-key-alias koelplayer \
+            --out build/app/outputs/flutter-apk/KoelPlayer.apk \
+            build/app/outputs/flutter-apk/aligned.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KoelPlayer
+          path: build/app/outputs/flutter-apk/KoelPlayer.apk
