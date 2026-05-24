@@ -21,14 +21,14 @@ jobs:
         with:
           flutter-version: '3.27.4'
           channel: stable
-          
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Generate Keystore
         run: |
           keytool -genkey -v \
-            -keystore keystore.jks \
+            -keystore android/app/keystore.jks \
             -alias koelplayer \
             -keyalg RSA \
             -keysize 2048 \
@@ -36,6 +36,13 @@ jobs:
             -storepass koel123456 \
             -keypass koel123456 \
             -dname "CN=KoelPlayer, OU=App, O=App, L=Cairo, S=Cairo, C=EG"
+
+          cat > android/key.properties << EOF
+          storePassword=koel123456
+          keyPassword=koel123456
+          keyAlias=koelplayer
+          storeFile=../app/keystore.jks
+          EOF
 
       - name: Build Release APK
         run: flutter build apk --release
@@ -47,7 +54,7 @@ jobs:
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | sort -r | head -1)
           $ZIPALIGN -v -f 4 "$UNSIGNED" build/app/outputs/flutter-apk/aligned.apk
           $APKSIGNER sign \
-            --ks keystore.jks \
+            --ks android/app/keystore.jks \
             --ks-pass pass:koel123456 \
             --key-pass pass:koel123456 \
             --ks-key-alias koelplayer \
